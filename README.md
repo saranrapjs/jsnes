@@ -1,26 +1,17 @@
-JSNES
-=====
+# JSNES
 
-A JavaScript NES emulator.
+A JavaScript NES emulator. This is a lovingly mutilated fork, optimized for simplicity.
 
-Build
------
+### Build
 
-To run locally:
+This outputs a concatenated, partially minified javascript bundle:
 
-    $ docker-compose up
+```bash
+./build.sh > build.js
+```
 
-And it'll be available at http://localhost
+### Customization
 
-To build a distribution:
+The emulator renders onto an HTML canvas element — I played around with allowing customized dimensions for the element, but it seems like this'd require more tinkering with the underlying library. So you'll note that the sizing is just set via CSS in a `<style/>` tag.
 
-    $ docker-compose run build grunt
-
-This will create ``jsnes.js`` and ``jsnes-min.js`` in ``build/``.
-
-Benchmark
----------
-
-The benchmark in ``test/benchmark.js`` is intended for testing JavaScript 
-engines. It does not depend on a DOM or Canvas element etc.
-
+All of the buttons can be hidden, if you want to, this way as well! I removed most of the chrome for selecting a ROM, so a ROM is specified directly in the plugin invocation — I've also removed the "X.YZ FPS" status indicator as it seemed high energy. All of this & more are best understood from the `index.html` example, which should be runnable with or without a server :)

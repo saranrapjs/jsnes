@@ -26,43 +26,34 @@ JSNES.DummyUI = function(nes) {
 
 if (typeof jQuery !== 'undefined') {
     (function($) {
-        $.fn.JSNESUI = function(roms) {
+        $.fn.JSNESUI = function(opts) {
             var parent = this;
             var UI = function(nes) {
                 var self = this;
                 self.nes = nes;
-                
+
                 /*
                  * Create UI
                  */
                 self.root = $('<div></div>');
                 self.screen = $('<canvas class="nes-screen" width="256" height="240"></canvas>').appendTo(self.root);
-                
+
                 if (!self.screen[0].getContext) {
                     parent.html("Your browser doesn't support the <code>&lt;canvas&gt;</code> tag. Try Google Chrome, Safari, Opera or Firefox!");
                     return;
                 }
-                
+
                 self.romContainer = $('<div class="nes-roms"></div>').appendTo(self.root);
-                self.romSelect = $('<select></select>').appendTo(self.romContainer);
-                
+
                 self.controls = $('<div class="nes-controls"></div>').appendTo(self.root);
                 self.buttons = {
                     pause: $('<input type="button" value="pause" class="nes-pause" disabled="disabled">').appendTo(self.controls),
                     restart: $('<input type="button" value="restart" class="nes-restart" disabled="disabled">').appendTo(self.controls),
                     sound: $('<input type="button" value="disable sound" class="nes-enablesound">').appendTo(self.controls),
-                    zoom: $('<input type="button" value="zoom in" class="nes-zoom">').appendTo(self.controls)
                 };
                 self.status = $('<p class="nes-status">Booting up...</p>').appendTo(self.root);
                 self.root.appendTo(parent);
-                
-                /*
-                 * ROM loading
-                 */
-                self.romSelect.change(function() {
-                    self.loadROM();
-                });
-                
+
                 /*
                  * Buttons
                  */
@@ -77,12 +68,12 @@ if (typeof jQuery !== 'undefined') {
                         self.buttons.pause.attr("value", "pause");
                     }
                 });
-        
+
                 self.buttons.restart.click(function() {
                     self.nes.reloadRom();
                     self.nes.start();
                 });
-        
+
                 self.buttons.sound.click(function() {
                     if (self.nes.opts.emulateSound) {
                         self.nes.opts.emulateSound = false;
@@ -93,67 +84,20 @@ if (typeof jQuery !== 'undefined') {
                         self.buttons.sound.attr("value", "disable sound");
                     }
                 });
-        
-                self.zoomed = false;
-                self.buttons.zoom.click(function() {
-                    if (self.zoomed) {
-                        self.screen.animate({
-                            width: '256px',
-                            height: '240px'
-                        });
-                        self.buttons.zoom.attr("value", "zoom in");
-                        self.zoomed = false;
-                    }
-                    else {
-                        self.screen.animate({
-                            width: '512px',
-                            height: '480px'
-                        });
-                        self.buttons.zoom.attr("value", "zoom out");
-                        self.zoomed = true;
-                    }
-                });
-                
-                /*
-                 * Lightgun experiments with mouse
-                 * (Requires jquery.dimensions.js)
-                 */
-                if ($.offset) {
-                    self.screen.mousedown(function(e) {
-                        if (self.nes.mmap) {
-                            self.nes.mmap.mousePressed = true;
-                            // FIXME: does not take into account zoom
-                            self.nes.mmap.mouseX = e.pageX - self.screen.offset().left;
-                            self.nes.mmap.mouseY = e.pageY - self.screen.offset().top;
-                        }
-                    }).mouseup(function() {
-                        setTimeout(function() {
-                            if (self.nes.mmap) {
-                                self.nes.mmap.mousePressed = false;
-                                self.nes.mmap.mouseX = 0;
-                                self.nes.mmap.mouseY = 0;
-                            }
-                        }, 500);
-                    });
-                }
-            
-                if (typeof roms != 'undefined') {
-                    self.setRoms(roms);
-                }
-            
+
                 /*
                  * Canvas
                  */
                 self.canvasContext = self.screen[0].getContext('2d');
-                
+
                 if (!self.canvasContext.getImageData) {
                     parent.html("Your browser doesn't support writing pixels directly to the <code>&lt;canvas&gt;</code> tag. Try the latest versions of Google Chrome, Safari, Opera or Firefox!");
                     return;
                 }
-                
+
                 self.canvasImageData = self.canvasContext.getImageData(0, 0, 256, 240);
                 self.resetCanvas();
-            
+
                 /*
                  * Keyboard
                  */
@@ -167,21 +111,20 @@ if (typeof jQuery !== 'undefined') {
                     bind('keypress', function(evt) {
                         self.nes.keyboard.keyPress(evt);
                     });
-            
+
                 /*
                  * Sound
                  */
-                self.dynamicaudio = new DynamicAudio({
-                    swf: nes.opts.swfPath+'dynamicaudio.swf'
-                });
+                self.dynamicaudio = new DynamicAudio();
+                self.loadROM(opts.rom);
             };
-        
-            UI.prototype = {    
-                loadROM: function() {
+
+            UI.prototype = {
+                loadROM: function(romPath) {
                     var self = this;
                     self.updateStatus("Downloading...");
                     $.ajax({
-                        url: escape(self.romSelect.val()),
+                        url: escape(romPath),
                         xhr: function() {
                             var xhr = $.ajaxSettings.xhr();
                             if (typeof xhr.overrideMimeType !== 'undefined') {
@@ -253,32 +196,15 @@ if (typeof jQuery !== 'undefined') {
                         this.buttons.sound.attr("value", "enable sound");
                     }
                 },
-            
+
                 updateStatus: function(s) {
-                    this.status.text(s);
+                    this.status.text('');
                 },
-        
-                setRoms: function(roms) {
-                    this.romSelect.children().remove();
-                    $("<option>Select a ROM...</option>").appendTo(this.romSelect);
-                    for (var groupName in roms) {
-                        if (roms.hasOwnProperty(groupName)) {
-                            var optgroup = $('<optgroup></optgroup>').
-                                attr("label", groupName);
-                            for (var i = 0; i < roms[groupName].length; i++) {
-                                $('<option>'+roms[groupName][i][0]+'</option>')
-                                    .attr("value", roms[groupName][i][1])
-                                    .appendTo(optgroup);
-                            }
-                            this.romSelect.append(optgroup);
-                        }
-                    }
-                },
-            
+
                 writeAudio: function(samples) {
                     return this.dynamicaudio.writeInt(samples);
                 },
-            
+
                 writeFrame: function(buffer, prevBuffer) {
                     var imageData = this.canvasImageData.data;
                     var pixel, i, j;
